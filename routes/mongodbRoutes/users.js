@@ -178,4 +178,17 @@ router.get(`/get/count`, async (req, res) => {
     }
 });
 
+router.post(`/getuseridfromtoken`, async (req, res) => {
+    try {
+        const token = req.headers.authorization.split(' ')[1]; // Assuming Bearer token
+        const decoded = jwt.verify(token, process.env.SECRET_KEY); // Replace 'your-secret-key' with your actual secret key
+        const userId = decoded.userId; // Adjust this to the actual field name in your token
+        res.send({ userId });
+    } catch (error) {
+        console.error("Error fetching user ID:", error);
+        res.status(500).json({ success: false, error: "Internal server error" });
+    }
+});
+
+
 module.exports = router;
