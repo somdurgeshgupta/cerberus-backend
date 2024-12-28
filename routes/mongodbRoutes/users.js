@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const {decodeToken} = require('../../helpers/jwt');
 
 router.get(`/`, async (req, res) => {
     const userList = await User.find().select('-passwordHash');
@@ -98,6 +99,7 @@ router.post('/login', async (req, res) => {
             const token = jwt.sign(
                 {
                     userId: user.id,
+                    email: req.body.email,
                     isAdmin: user.isAdmin
                 },
                 secret,
@@ -148,6 +150,18 @@ router.post('/register', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
     try {
+        // Get userId from the JWT token
+        const userIdFromToken = await decodeToken(req);  // Assuming `req.user` contains the JWT payload
+
+        // Check if the id in the URL matches the userId from the token
+        if (req.params.id !== userIdFromToken.userId) {
+            return res.status(403).json({
+                success: false,
+                message: 'You are not authorized to delete this user account!'
+            });
+        }
+
+        // Proceed with deleting the user if authorized
         const user = await User.findOneAndDelete({ _id: req.params.id });
         if (user) {
             return res.status(200).json({ success: true, message: 'The user has been deleted!' });
@@ -180,10 +194,8 @@ router.get(`/get/count`, async (req, res) => {
 
 router.post(`/getuseridfromtoken`, async (req, res) => {
     try {
-        const token = req.headers.authorization.split(' ')[1]; // Assuming Bearer token
-        const decoded = jwt.verify(token, process.env.SECRET_KEY); // Replace 'your-secret-key' with your actual secret key
-        const userId = decoded.userId; // Adjust this to the actual field name in your token
-        res.send({ userId });
+        const decoded = await decodeToken(req);
+        res.send({ userId: decoded.userId });
     } catch (error) {
         console.error("Error fetching user ID:", error);
         res.status(500).json({ success: false, error: "Internal server error" });

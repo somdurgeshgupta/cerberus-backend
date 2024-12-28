@@ -1,4 +1,5 @@
 const { expressjwt: jwt } = require("express-jwt");
+const jwttoken = require('jsonwebtoken');
 
 function authJwt() {
     const secret = process.env.SECRET_KEY;
@@ -26,17 +27,17 @@ async function isRevoked(req, payload) {
     return false;
 }
 
-function decodeToken(req) {
+async function decodeToken(req) {
     try {
-        const decoded = req.headers.authorization;
+        const token = req.headers.authorization.split(' ')[1]; // Assuming Bearer token
+        const decoded = jwttoken.verify(token, process.env.SECRET_KEY); // Replace 'your-secret-key' with your actual secret key
+        console.log(decoded.userId);
         return decoded;
     } catch (error) {
-        // If token is invalid or userId is not found, return null
         console.error('Error decoding token:', error.message);
         return null;
     }
 }
-
 
 module.exports = {
     authJwt,
