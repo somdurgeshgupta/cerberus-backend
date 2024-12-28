@@ -39,6 +39,9 @@ const usersRoutes = require('./routes/mongodbRoutes/users.js');
 const api = process.env.API_URL;
 
 app.use(`${api}/users`, authJwt(), usersRoutes);
+app.use(`/`, (req, res)=>{
+  res.send('Welcome to the API');
+})
 
 // Routes for mysql database
 // app.use(`${api}/mysql`, require('./routes/mysqlRoutes'));
