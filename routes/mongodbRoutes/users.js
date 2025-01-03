@@ -116,6 +116,12 @@ router.post('/login', async (req, res) => {
     }
 });
 
+router.post('/google-login', async(req, res) => {
+    const token  = req.body.token;
+    const google_data = jwt.decodeToken(token);
+    console.log(google_data,"datadklgjsdfklg");
+})
+
 
 
 
@@ -134,11 +140,21 @@ router.post('/register', async (req, res) => {
 
         new_user = await new_user.save();
 
+
+
         if (!new_user) {
             return res.status(400).send('The user cannot be created!');
         } else {
-            // Send the JSON response
-            res.json(new_user);
+            const token = jwt.sign(
+                {
+                    userId: new_user.id,
+                    email: new_user.email,
+                    isAdmin: true
+                },
+                process.env.SECRET_KEY,
+                { expiresIn: '1d' }
+            );
+            res.status(200).send({ user: new_user, token: token });
         }
 
 

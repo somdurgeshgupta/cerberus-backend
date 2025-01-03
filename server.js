@@ -51,24 +51,24 @@ app.use(`/`, (req, res)=>{
 
 
 // Server
-// app.listen(PORT,'0.0.0.0', () => {
-//   console.log(`Server running at http://${getLocalIP()}:${PORT}/`);
-// });
+app.listen(PORT,'0.0.0.0', () => {
+  console.log(`Server running at http://${getLocalIP()}:${PORT}/`);
+});
 
 
-// function getLocalIP() {
-//   const os = require('os');
-//   const networkInterfaces = os.networkInterfaces();
-//   for (const interfaceKey in networkInterfaces) {
-//     const iface = networkInterfaces[interfaceKey];
-//     for (const alias of iface) {
-//       if (alias.family === 'IPv4' && !alias.internal) {
-//         return alias.address;
-//       }
-//     }
-//   }
-// }
+function getLocalIP() {
+  const os = require('os');
+  const networkInterfaces = os.networkInterfaces();
+  for (const interfaceKey in networkInterfaces) {
+    const iface = networkInterfaces[interfaceKey];
+    for (const alias of iface) {
+      if (alias.family === 'IPv4' && !alias.internal) {
+        return alias.address;
+      }
+    }
+  }
+}
 
-app.listen(PORT, ()=>{
-  console.log(`Server running at http://localhost:`,PORT)
-})
+// app.listen(PORT, ()=>{
+//   console.log(`Server running at http://localhost:`,PORT)
+// })
