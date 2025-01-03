@@ -116,14 +116,6 @@ router.post('/login', async (req, res) => {
     }
 });
 
-router.post('/google-login', async(req, res) => {
-    const token  = req.body.token;
-    const google_data = jwt.decodeToken(token);
-    console.log(google_data,"datadklgjsdfklg");
-})
-
-
-
 
 router.post('/register', async (req, res) => {
     try {

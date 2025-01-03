@@ -15,8 +15,7 @@ function authJwt() {
             // { url: /\/api\/v1\/categories(.*)/, methods: ['GET', 'OPTIONS'] },
             // { url: /\/api\/v1\/orders(.*)/, methods: ['POST', 'OPTIONS'] },
             `${api}/users/login`,
-            `${api}/users/register`,
-            `${api}/users/google-login`,
+            `${api}/users/register`
         ]
     });
 }
