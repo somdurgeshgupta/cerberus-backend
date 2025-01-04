@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 
 // Google OAuth2 client
-const client = new OAuth2Client("855831171805-hbharbt1j31v67i2ruve5trh2pa50blb.apps.googleusercontent.com");
+const client = new OAuth2Client(process.env.GOOGLE_AUTH_KEY);
 
 // Function to decode and verify the Google token
 async function decodeGoogleToken(token) {
@@ -13,7 +13,7 @@ async function decodeGoogleToken(token) {
         // Verify the token with Google's OAuth2 client
         const ticket = await client.verifyIdToken({
             idToken: token,
-            audience: '855831171805-hbharbt1j31v67i2ruve5trh2pa50blb.apps.googleusercontent.com', // Replace with your Google client ID
+            audience: process.env.GOOGLE_AUTH_KEY, // Replace with your Google client ID
         });
 
         // Extract the payload from the token
