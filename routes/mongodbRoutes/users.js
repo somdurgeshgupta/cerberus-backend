@@ -56,35 +56,46 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-router.put('/forgetpassword/:id', async (req, res) => {
+
+router.post('/forgetpassword', async (req, res) => {
     try {
-        const userExist = await User.findById(req.params.id);
-        if (!userExist) {
-            return res.status(400).json({ success: false, message: "User does not exist." });
+        const { email, password } = req.body;
+
+        // Validate input
+        if (!email || !password) {
+            return res.status(400).json({ success: false, message: 'Email and password are required.' });
         }
 
-        const newPassword = req.body.password ? bcrypt.hashSync(req.body.password, 10) : userExist.passwordHash;
+        // Check if user exists
+        const userExist = await User.findOne({ email });
+        console.log(userExist,"DGAsdfadf")
+        if (!userExist) {
+            return res.status(404).json({ success: false, message: 'User does not exist.' });
+        }
 
-        const user = await User.findByIdAndUpdate(
-            req.params.id,
-            { passwordHash: newPassword },
-            { new: true }
+        // Hash the new password
+        const hashedPassword = bcrypt.hashSync(password, 10);
+
+        // Update the user's password
+        const updatedUser = await User.findByIdAndUpdate(
+            userExist._id, // Use the valid ObjectId from the user document
+            { passwordHash: hashedPassword },
+            { new: true } // Return the updated document
         );
 
-        if (!user) {
-            return res.status(400).send('The user cannot be updated!');
+        if (!updatedUser) {
+            return res.status(500).json({ success: false, message: 'Failed to update the password.' });
         }
 
-        res.status(200).send(`The user password is updated for ${user.name}!`);
+        res.status(200).json({ 
+            success: true, 
+            message: `Password has been successfully updated for ${updatedUser.name}!` 
+        });
     } catch (error) {
-        console.error("Error updating password:", error);
-        res.status(500).send('Internal server error');
+        console.error('Error updating password:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
     }
 });
-
-
-
-
 
 
 
