@@ -12,6 +12,10 @@ const userSchema = new mongoose.Schema({
     passwordHash: {
         type: String,
         required: false,
+    },
+    picture: {
+        type: String,
+        required: false
     }
 });
 

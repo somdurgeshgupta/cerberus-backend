@@ -49,12 +49,22 @@ router.post('/googlelogin', async (req, res) => {
             // Create a new user if one doesn't exist
             user = new User({
                 name: payload.name,
-                email: payload.email
+                email: payload.email,
+                picture: payload.picture
             });
             user = await user.save();
 
             if (!user) {
                 return res.status(500).send({ message: "The user cannot be created!" });
+            }
+        }else{
+            if (payload.picture !== user.picture) {
+                user.picture = payload.picture;
+                user = await user.save();
+        
+                if (!user) {
+                    return res.status(500).send({ message: "The user's picture cannot be updated!" });
+                }
             }
         }
 
