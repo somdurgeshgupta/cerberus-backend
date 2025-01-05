@@ -68,7 +68,6 @@ router.post('/forgetpassword', async (req, res) => {
 
         // Check if user exists
         const userExist = await User.findOne({ email });
-        console.log(userExist,"DGAsdfadf")
         if (!userExist) {
             return res.status(404).json({ success: false, message: 'User does not exist.' });
         }
