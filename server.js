@@ -3,11 +3,13 @@ require('dotenv/config');
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
-const {authJwt} = require('./helpers/jwt');
+const { authJwt } = require('./helpers/jwt');
 const errorHandler = require('./helpers/error-handler');
-const PORT = process.env.PORT || 3000;
+const fs = require('fs');
+const https = require('https');
+const http = require('http');
 const bodyParser = require('body-parser');
-const connectToDatabaseMongoose = require('./config/mongoose.js'); //mongodb connection
+const connectToDatabaseMongoose = require('./config/mongoose.js'); // MongoDB connection
 
 // Connect to the database
 connectToDatabaseMongoose();
@@ -25,10 +27,9 @@ app.use(cors({
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true // If using cookies/auth
 }));
+
 app.use(express.json());
 app.options('*', cors());
-
-
 app.use(morgan('tiny'));
 app.use('/public/uploads', express.static(__dirname + '/public/uploads'));
 app.use(errorHandler);
@@ -41,36 +42,32 @@ const api = process.env.API_URL;
 
 app.use(`${api}/users`, authJwt(), usersRoutes);
 app.use(`${api}`, googlelogin);
-app.use(`/`, (req, res)=>{
+app.use(`/`, (req, res) => {
   res.send('Welcome to API');
-})
+});
 
 // Routes for mysql database
 // app.use(`${api}/mysql`, require('./routes/mysqlRoutes'));
 
 // No authJwt middleware for testing route
-// app.use(`${api}`,testing);
+// app.use(`${api}`, testing);
 
+// Redirect HTTP to HTTPS
+http.createServer((req, res) => {
+  res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
+  res.end();
+}).listen(80, () => {
+  console.log('HTTP server running on port 80 (redirecting to HTTPS)');
+});
 
-// Server
-// app.listen(PORT,'0.0.0.0', () => {
-//   console.log(`Server running at http://${getLocalIP()}:${PORT}/`);
-// });
+// HTTPS configuration
+const sslOptions = {
+  key: fs.readFileSync('/home/ubuntu/ssl/private-key.pem'),
+  cert: fs.readFileSync('/home/ubuntu/ssl/certificate.pem'),
+  // ca: fs.readFileSync('/path/to/your/ca-cert.pem'), // Update if needed, for chain certificates
+};
 
-
-// function getLocalIP() {
-//   const os = require('os');
-//   const networkInterfaces = os.networkInterfaces();
-//   for (const interfaceKey in networkInterfaces) {
-//     const iface = networkInterfaces[interfaceKey];
-//     for (const alias of iface) {
-//       if (alias.family === 'IPv4' && !alias.internal) {
-//         return alias.address;
-//       }
-//     }
-//   }
-// }
-
-app.listen(PORT, ()=>{
-  console.log(`Server running at http://localhost:`,PORT)
-})
+// Start HTTPS server
+https.createServer(sslOptions, app).listen(443, () => {
+  console.log('HTTPS server running on port 443');
+});
