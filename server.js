@@ -11,7 +11,7 @@ const connectToDatabaseMongoose = require('./config/mongoose.js');
 
 // SSL certificate paths (Update with your actual certificate and key paths)
 const privateKey = fs.readFileSync('/home/ubuntu/ssl/private-key.pem', 'utf8');
-const certificate = fs.readFileSync('/home/ubuntu/ssl/certificate.crt', 'utf8');
+const certificate = fs.readFileSync('/home/ubuntu/ssl/certificate.pem', 'utf8');
 // const ca = fs.readFileSync('/path/to/your/ca_bundle.crt', 'utf8');
 
 const credentials = { key: privateKey, cert: certificate, ca: ca };
