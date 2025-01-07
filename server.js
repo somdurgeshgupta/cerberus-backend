@@ -49,7 +49,7 @@ app.use(`/`, (req, res) => {
 });
 
 // Start HTTPS server
-const PORT = 3000; // HTTPS default port
+const PORT = 4100; // HTTPS default port
 const httpsServer = https.createServer(credentials, app);
 
 httpsServer.listen(PORT, () => {
