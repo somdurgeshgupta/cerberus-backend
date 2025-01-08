@@ -34,7 +34,7 @@ app.use(express.json());
 app.options('*', cors());
 
 app.use(morgan('tiny'));
-app.use('/public/uploads', express.static(__dirname + '/public/uploads'));
+app.use(`${api}/uploads`, express.static(path.join(__dirname, 'uploads')));
 app.use(errorHandler);
 
 const usersRoutes = require('./routes/mongodbRoutes/users.js');

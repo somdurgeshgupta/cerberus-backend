@@ -65,7 +65,7 @@ router.post('/upload-profile-image/:id', upload.single('profileImage'), async (r
     }
 
     // Update the user's profile image URL
-    user.profileImage = `/uploads/profiles/${user.email}/${req.file.filename}`; // Save the image path in the DB
+    user.profileImage = `uploads/profiles/${user.email}/${req.file.filename}`; // Save the image path in the DB
 
     await user.save(); // Save the updated user profile
 
