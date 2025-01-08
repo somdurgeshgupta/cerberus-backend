@@ -1,6 +1,6 @@
 require('dotenv/config');
-const fs = require('fs');
-const https = require('https');
+// const fs = require('fs');
+// const https = require('https');
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
@@ -10,11 +10,11 @@ const bodyParser = require('body-parser');
 const connectToDatabaseMongoose = require('./config/mongoose.js');
 
 // SSL certificate paths (Update with your actual certificate and key paths)
-const privateKey = fs.readFileSync('/home/ubuntu/ssl/private-key.pem', 'utf8');
-const certificate = fs.readFileSync('/home/ubuntu/ssl/certificate.pem', 'utf8');
+// const privateKey = fs.readFileSync('/home/ubuntu/ssl/private-key.pem', 'utf8');
+// const certificate = fs.readFileSync('/home/ubuntu/ssl/certificate.pem', 'utf8');
 // const ca = fs.readFileSync('/path/to/your/ca_bundle.crt', 'utf8');
 
-const credentials = { key: privateKey, cert: certificate};
+// const credentials = { key: privateKey, cert: certificate};
 
 connectToDatabaseMongoose();
 
@@ -27,7 +27,7 @@ app.use(
   cors({
     origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
+    // credentials: true,
   })
 );
 app.use(express.json());
@@ -35,23 +35,27 @@ app.options('*', cors());
 
 app.use(morgan('tiny'));
 app.use('/public/uploads', express.static(__dirname + '/public/uploads'));
+
+
 app.use(errorHandler);
 
 const usersRoutes = require('./routes/mongodbRoutes/users.js');
+const profileRoutes = require('./routes/mongodbRoutes/profile.js');
 const googlelogin = require('./helpers/google-login.js');
 
 const api = process.env.API_URL;
 
 app.use(`${api}/users`, authJwt(), usersRoutes);
+app.use(`${api}/profile`, authJwt(), profileRoutes);
 app.use(`${api}`, googlelogin);
-app.use(`/`, (req, res) => {
-  res.send('Welcome to API');
-});
+// app.use(`/`, (req, res) => {
+//   res.send('Welcome to API');
+// });
 
 // Start HTTPS server
-const PORT = 4100; // HTTPS default port
-const httpsServer = https.createServer(credentials, app);
+const PORT = process.env.PORT || 4100; // HTTPS default port
+// const httpsServer = https.createServer(credentials, app);
 
-httpsServer.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`HTTPS Server running at https://localhost:${PORT}`);
 });

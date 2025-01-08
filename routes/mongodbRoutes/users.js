@@ -23,6 +23,8 @@ router.get('/:id', async (req, res) => {
     res.status(200).send(user);
 });
 
+
+
 router.put('/:id', async (req, res) => {
     try {
         const userExist = await User.findById(req.params.id);
