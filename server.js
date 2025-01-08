@@ -2,6 +2,7 @@ require('dotenv/config');
 const fs = require('fs');
 const https = require('https');
 const api = process.env.API_URL;
+const path = require('path');
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
