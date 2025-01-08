@@ -44,6 +44,7 @@ const googlelogin = require('./helpers/google-login.js');
 const api = process.env.API_URL;
 
 app.use(`${api}/users`, authJwt(), usersRoutes);
+app.use(`${api}/profile`, authJwt(), profileRoutes);
 app.use(`${api}`, googlelogin);
 app.use(`/`, (req, res) => {
   res.send('Welcome to API');
