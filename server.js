@@ -1,6 +1,7 @@
 require('dotenv/config');
 const fs = require('fs');
 const https = require('https');
+const api = process.env.API_URL;
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
@@ -41,7 +42,7 @@ const usersRoutes = require('./routes/mongodbRoutes/users.js');
 const profileRoutes = require('./routes/mongodbRoutes/profile.js');
 const googlelogin = require('./helpers/google-login.js');
 
-const api = process.env.API_URL;
+
 
 app.use(`${api}/users`, authJwt(), usersRoutes);
 app.use(`${api}/profile`, authJwt(), profileRoutes);
