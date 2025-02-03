@@ -1,61 +1,70 @@
+// Import required modules
 require('dotenv/config');
-// const fs = require('fs');
-// const https = require('https');
-const api = process.env.API_URL;
-const path = require('path');
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
-const { authJwt } = require('./helpers/jwt');
+const {authJwt} = require('./helpers/jwt');
 const errorHandler = require('./helpers/error-handler');
+const PORT = 3000;
 const bodyParser = require('body-parser');
-const connectToDatabaseMongoose = require('./config/mongoose.js');
+const connectToDatabaseMongoose = require('./config/mongoose.js'); 
 
-// SSL certificate paths (Update with your actual certificate and key paths)
-// const privateKey = fs.readFileSync('/home/ubuntu/ssl/private-key.pem', 'utf8');
-// const certificate = fs.readFileSync('/home/ubuntu/ssl/certificate.pem', 'utf8');
-// const ca = fs.readFileSync('/path/to/your/ca_bundle.crt', 'utf8');
-
-// const credentials = { key: privateKey, cert: certificate};
-
+// Connect to the database
 connectToDatabaseMongoose();
 
+// Create an Express application
 const app = express();
 
+// Middleware
 app.use(bodyParser.json());
 app.use(cors());
 
-app.use(
-  cors({
-    origin: '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-  })
-);
+// Alternatively, configure specific domains and methods
+app.use(cors({
+  origin: '*', // Replace with your Angular app's URL
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true // If using cookies/auth
+}));
 app.use(express.json());
 app.options('*', cors());
 
 app.use(morgan('tiny'));
-app.use(`${api}/uploads`, express.static(path.join(__dirname, 'uploads')));
+app.use('/public/uploads', express.static(__dirname + '/public/uploads'));
 app.use(errorHandler);
+
+const api = process.env.API_URL;
 
 const usersRoutes = require('./routes/mongodbRoutes/users.js');
 const profileRoutes = require('./routes/mongodbRoutes/profile.js');
 const googlelogin = require('./helpers/google-login.js');
+const chatRoutes = require('./routes/mongodbRoutes/chat.js');
 
-
-
+// Routes for mysql database
 app.use(`${api}/users`, authJwt(), usersRoutes);
 app.use(`${api}/profile`, authJwt(), profileRoutes);
+app.use(`${api}/message`, authJwt(), chatRoutes);
 app.use(`${api}`, googlelogin);
-app.use(`/testing`, (req, res) => {
-  res.send('Welcome to API');
-});
 
-// Start HTTPS server
-const PORT = process.env.PORT || 4100; // HTTPS default port
-// const httpsServer = https.createServer(credentials, app);
 
-app.listen(PORT, () => {
-  console.log(`HTTPS Server running at https://localhost:${PORT}`);
-});
+// Server
+// app.listen(PORT,'0.0.0.0', () => {
+//   console.log(`Server running at http://${getLocalIP()}:${PORT}/`);
+// });
+
+
+// function getLocalIP() {
+//   const os = require('os');
+//   const networkInterfaces = os.networkInterfaces();
+//   for (const interfaceKey in networkInterfaces) {
+//     const iface = networkInterfaces[interfaceKey];
+//     for (const alias of iface) {
+//       if (alias.family === 'IPv4' && !alias.internal) {
+//         return alias.address;
+//       }
+//     }
+//   }
+// }
+
+app.listen(PORT, ()=>{
+  console.log(`Server running at http://localhost:`, PORT)
+})
