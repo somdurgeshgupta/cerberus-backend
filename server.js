@@ -10,7 +10,7 @@ const errorHandler = require('./helpers/error-handler');
 const bodyParser = require('body-parser');
 const connectToDatabaseMongoose = require('./config/mongoose.js');
 
-const PORT = 3000;
+const PORT = process.env.port || 3000;
 
 // Connect to the database
 connectToDatabaseMongoose();
