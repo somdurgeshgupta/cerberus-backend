@@ -68,26 +68,26 @@ io.on('connection', (socket) => {
   });
 });
 
-// // Start the server
-// server.listen(PORT, '0.0.0.0', () => {
-//   console.log(`Server running at http://${getLocalIP()}:${PORT}/`);
-// });
+// Start the server
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running at http://${getLocalIP()}:${PORT}/`);
+});
 
-// // Function to get local IP
-// function getLocalIP() {
-//   const os = require('os');
-//   const networkInterfaces = os.networkInterfaces();
-//   for (const interfaceKey in networkInterfaces) {
-//     const iface = networkInterfaces[interfaceKey];
-//     for (const alias of iface) {
-//       if (alias.family === 'IPv4' && !alias.internal) {
-//         return alias.address;
-//       }
-//     }
-//   }
-// }
+// Function to get local IP
+function getLocalIP() {
+  const os = require('os');
+  const networkInterfaces = os.networkInterfaces();
+  for (const interfaceKey in networkInterfaces) {
+    const iface = networkInterfaces[interfaceKey];
+    for (const alias of iface) {
+      if (alias.family === 'IPv4' && !alias.internal) {
+        return alias.address;
+      }
+    }
+  }
+}
 
 
-app.listen(PORT, ()=> {
-  console.log(`server running at http`)
-})
+// app.listen(PORT, ()=> {
+//   console.log(`server running at http`)
+// })
