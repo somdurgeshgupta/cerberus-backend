@@ -9,7 +9,7 @@ const errorHandler = require('./helpers/error-handler');
 const bodyParser = require('body-parser');
 const connectToDatabaseMongoose = require('./config/mongoose.js');
 
-const PORT = process.env.PORT || 3000; // Ensure this works dynamically
+const PORT = process.env.PORT || 3000;
 
 // Connect to the database
 connectToDatabaseMongoose();
@@ -17,16 +17,31 @@ connectToDatabaseMongoose();
 // Create an Express application
 const app = express();
 const server = http.createServer(app); // Create HTTP server for WebSockets
-const io = new Server(server, {
-  cors: {
-    origin: '*', // Change to your frontend domain in production
-    methods: ['GET', 'POST']
-  }
-});
+
+// Allow CORS for specific frontend
+const allowedOrigins = [
+  'https://main.dm5guw9s7uphw.amplifyapp.com', // Your Amplify frontend URL
+  'http://localhost:4200' // Local development (Adjust as needed)
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
+// Handle CORS preflight requests
+app.options('*', cors());
 
 // Middleware
 app.use(bodyParser.json());
-app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json());
 app.use(morgan('tiny'));
 app.use('/public/uploads', express.static(__dirname + '/public/uploads'));
@@ -47,6 +62,14 @@ app.use(`${api}/message`, authJwt(), chatRoutes);
 app.use(`${api}`, googlelogin);
 
 // WebSocket Handling
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins, // Only allow specified origins
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
