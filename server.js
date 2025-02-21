@@ -20,7 +20,6 @@ const server = http.createServer(app); // Create HTTP server for WebSockets
 
 // Allow CORS for specific frontend
 const allowedOrigins = [
-  'https://main.dm5guw9s7uphw.amplifyapp.com', // Your Amplify frontend URL
   'http://localhost:4200' // Local development (Adjust as needed)
 ];
 
