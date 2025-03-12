@@ -9,7 +9,7 @@ const errorHandler = require('./helpers/error-handler');
 const bodyParser = require('body-parser');
 const connectToDatabaseMongoose = require('./config/mongoose.js');
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 
 // Connect to the database
 connectToDatabaseMongoose();
@@ -59,6 +59,10 @@ app.use(`${api}/users`, authJwt(), usersRoutes);
 app.use(`${api}/profile`, authJwt(), profileRoutes);
 app.use(`${api}/message`, authJwt(), chatRoutes);
 app.use(`${api}`, googlelogin);
+
+app.get('', (req, res)=>{
+  res.send("Welcome to the application");
+})
 
 // WebSocket Handling
 const io = new Server(server, {
