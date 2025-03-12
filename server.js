@@ -61,7 +61,7 @@ app.use(`${api}/message`, authJwt(), chatRoutes);
 app.use(`${api}`, googlelogin);
 
 app.get('', (req, res)=>{
-  res.send("Welcome to the application");
+  res.send("Welcome to the application latest");
 })
 
 // WebSocket Handling
