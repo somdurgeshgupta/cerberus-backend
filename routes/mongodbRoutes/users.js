@@ -5,23 +5,36 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const {decodeToken} = require('../../helpers/jwt');
 
-router.get(`/`, async (req, res) => {
-    const userList = await User.find().select('-passwordHash');
+router.get('/', async (req, res) => {
+    try {
+        const userList = await User.find().select('-passwordHash');
 
-    if (!userList) {
-        res.status(500).json({ success: false });
+        if (!userList) {
+            return res.status(500).json({ success: false, message: 'No users found' });
+        }
+
+        res.status(200).send(userList);
+    } catch (err) {
+        console.error('Error fetching users:', err.message);
+        res.status(500).json({ success: false, error: err.message });
     }
-    res.send(userList);
 });
 
 router.get('/:id', async (req, res) => {
-    const user = await User.findById(req.params.id).select('-passwordHash');
+    try {
+        const user = await User.findById(req.params.id).select('-passwordHash');
 
-    if (!user) {
-        res.status(500).json({ message: 'The user with the given ID was not found.' });
+        if (!user) {
+            return res.status(404).json({ message: 'The user with the given ID was not found.' });
+        }
+
+        res.status(200).send(user);
+    } catch (err) {
+        console.error(`Error fetching user with ID ${req.params.id}:`, err.message);
+        res.status(500).json({ error: err.message });
     }
-    res.status(200).send(user);
 });
+
 
 
 
@@ -115,7 +128,7 @@ router.post('/login', async (req, res) => {
                     isAdmin: user.isAdmin
                 },
                 secret,
-                { expiresIn: '1d' }
+                { expiresIn: '1m' }
             );
 
             res.status(200).send({ user: user.email, token: token });

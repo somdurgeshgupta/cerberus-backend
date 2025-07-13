@@ -30,8 +30,8 @@ async function isRevoked(req, payload) {
 
 async function decodeToken(req) {
     try {
-        const token = req.headers.authorization.split(' ')[1]; // Assuming Bearer token
-        const decoded = jwttoken.verify(token, process.env.SECRET_KEY); // Replace 'your-secret-key' with your actual secret key
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwttoken.verify(token, process.env.SECRET_KEY); 
         console.log(decoded.userId);
         return decoded;
     } catch (error) {

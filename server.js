@@ -54,11 +54,13 @@ const usersRoutes = require('./routes/mongodbRoutes/users.js');
 const profileRoutes = require('./routes/mongodbRoutes/profile.js');
 const googlelogin = require('./helpers/google-login.js');
 const chatRoutes = require('./routes/mongodbRoutes/chat.js');
+const ideployRoutes = require('./routes/mongodbRoutes/ideploy.js')
 
 // Routes for MySQL database
 app.use(`${api}/users`, authJwt(), usersRoutes);
 app.use(`${api}/profile`, authJwt(), profileRoutes);
 app.use(`${api}/message`, authJwt(), chatRoutes);
+app.use(`${api}/ideploy`, ideployRoutes);
 app.use(`${api}`, googlelogin);
 
 // WebSocket Handling
@@ -84,6 +86,6 @@ io.on('connection', (socket) => {
 });
 
 // Start the server (Render compatible)
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
