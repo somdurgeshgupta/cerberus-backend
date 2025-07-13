@@ -1,7 +1,8 @@
 require('dotenv/config');
+const fs = require('fs');
 const express = require('express');
-const http = require('http'); // Required for WebSockets
-const { Server } = require('socket.io'); // Import socket.io
+const https = require('https'); // Use HTTPS instead of HTTP
+const { Server } = require('socket.io');
 const morgan = require('morgan');
 const cors = require('cors');
 const { authJwt } = require('./helpers/jwt');
@@ -9,18 +10,23 @@ const errorHandler = require('./helpers/error-handler');
 const bodyParser = require('body-parser');
 const connectToDatabaseMongoose = require('./config/mongoose.js');
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 443; // Use HTTPS default port
 
 // Connect to the database
 connectToDatabaseMongoose();
 
+// Load SSL certificate & key
+const sslOptions = {
+  key: fs.readFileSync('../../ssl/key.pem'),
+  cert: fs.readFileSync('../../ssl/cert.pem'),
+};
+
 // Create an Express application
 const app = express();
-const server = http.createServer(app); // Create HTTP server for WebSockets
+const server = https.createServer(sslOptions, app); // Create HTTPS server
 
 // Allow CORS for specific frontend
 const allowedOrigins = [
-  'https://main.dm5guw9s7uphw.amplifyapp.com', // Your Amplify frontend URL
   'http://localhost:4200' // Local development (Adjust as needed)
 ];
 
@@ -63,10 +69,14 @@ app.use(`${api}/message`, authJwt(), chatRoutes);
 app.use(`${api}/ideploy`, ideployRoutes);
 app.use(`${api}`, googlelogin);
 
+app.get('', (req, res) => {
+  res.send("Welcome to the application latest (HTTPS Secure)");
+});
+
 // WebSocket Handling
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins, // Only allow specified origins
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true
   }
