@@ -20,6 +20,10 @@ const userSchema = new mongoose.Schema({
     profileImage:{
         type: String,
         required: false
+    },
+    refreshTokens: {
+        type: [String],
+        default: []
     }
 });
 

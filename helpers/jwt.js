@@ -1,8 +1,16 @@
 const { expressjwt: jwt } = require("express-jwt");
 const jwttoken = require('jsonwebtoken');
 
+const getAccessTokenSecret = () => process.env.SECRET_KEY;
+const getRefreshTokenSecret = () => process.env.REFRESH_TOKEN_SECRET || process.env.SECRET_KEY;
+const getAccessTokenExpiry = () => process.env.JWT_EXPIRES_IN || '15m';
+const getRefreshTokenExpiry = () => process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
+const getRefreshTokenCookieName = () => process.env.REFRESH_TOKEN_COOKIE_NAME || 'refreshToken';
+const shouldUseSecureCookies = () => process.env.NODE_ENV === 'production';
+const getRefreshTokenCookieSameSite = () => process.env.REFRESH_TOKEN_COOKIE_SAME_SITE || (shouldUseSecureCookies() ? 'none' : 'lax');
+
 function authJwt() {
-    const secret = process.env.SECRET_KEY;
+    const secret = getAccessTokenSecret();
     const api = process.env.API_URL;
     return jwt({
         secret,
@@ -16,6 +24,8 @@ function authJwt() {
             // { url: /\/api\/v1\/orders(.*)/, methods: ['POST', 'OPTIONS'] },
             { url: `${api}/users/login`, methods: ['POST'] },
             { url: `${api}/users/register`, methods: ['POST'] },
+            { url: `${api}/users/refresh-token`, methods: ['POST'] },
+            { url: `${api}/users/logout`, methods: ['POST'] },
             { url: `${api}/users/forgetpassword`, methods: ['POST'] },
             { url: `${api}/users/get/count`, methods: ['GET'] }
         ]
@@ -23,16 +33,13 @@ function authJwt() {
 }
 
 async function isRevoked(req, payload) {
-    if (payload.isAdmin) {
-        return true
-    }
     return false;
 }
 
 async function decodeToken(req) {
     try {
         const token = req.headers.authorization.split(' ')[1];
-        const decoded = jwttoken.verify(token, process.env.SECRET_KEY); 
+        const decoded = jwttoken.verify(token, getAccessTokenSecret()); 
         console.log(decoded.userId);
         return decoded;
     } catch (error) {
@@ -41,7 +48,69 @@ async function decodeToken(req) {
     }
 }
 
+function createAccessToken(user) {
+    return jwttoken.sign(
+        {
+            userId: user.id,
+            email: user.email,
+            isAdmin: user.isAdmin
+        },
+        getAccessTokenSecret(),
+        { expiresIn: getAccessTokenExpiry() }
+    );
+}
+
+function createRefreshToken(user) {
+    return jwttoken.sign(
+        {
+            userId: user.id,
+            tokenType: 'refresh'
+        },
+        getRefreshTokenSecret(),
+        { expiresIn: getRefreshTokenExpiry() }
+    );
+}
+
+function verifyRefreshToken(token) {
+    return jwttoken.verify(token, getRefreshTokenSecret());
+}
+
+function getRefreshTokenCookieOptions() {
+    return {
+        httpOnly: true,
+        secure: shouldUseSecureCookies(),
+        sameSite: getRefreshTokenCookieSameSite(),
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000
+    };
+}
+
+function setRefreshTokenCookie(res, refreshToken) {
+    res.cookie(getRefreshTokenCookieName(), refreshToken, getRefreshTokenCookieOptions());
+}
+
+function clearRefreshTokenCookie(res) {
+    res.clearCookie(getRefreshTokenCookieName(), {
+        httpOnly: true,
+        secure: shouldUseSecureCookies(),
+        sameSite: getRefreshTokenCookieSameSite(),
+        path: '/'
+    });
+}
+
+function getRefreshTokenFromRequest(req) {
+    return req.cookies?.[getRefreshTokenCookieName()] || null;
+}
+
 module.exports = {
     authJwt,
-    decodeToken
+    decodeToken,
+    createAccessToken,
+    createRefreshToken,
+    verifyRefreshToken,
+    getAccessTokenExpiry,
+    getRefreshTokenExpiry,
+    setRefreshTokenCookie,
+    clearRefreshTokenCookie,
+    getRefreshTokenFromRequest
 };

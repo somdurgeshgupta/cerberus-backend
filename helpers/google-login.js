@@ -1,11 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { User } = require('../models/mongoModels/users');
-const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
+const {
+    createAccessToken,
+    createRefreshToken,
+    getAccessTokenExpiry,
+    setRefreshTokenCookie
+} = require('./jwt');
 
 const client = new OAuth2Client(process.env.GOOGLE_AUTH_KEY);
-const getJwtExpiry = () => process.env.JWT_EXPIRES_IN || '1d';
 
 async function decodeGoogleToken(token) {
     try {
@@ -61,17 +65,17 @@ router.post('/googlelogin', async (req, res) => {
             }
         }
 
-        const jwtToken = jwt.sign(
-            {
-                userId: user.id,
-                email: user.email,
-                isAdmin: user.isAdmin
-            },
-            process.env.SECRET_KEY,
-            { expiresIn: getJwtExpiry() }
-        );
+        const accessToken = createAccessToken(user);
+        const refreshToken = createRefreshToken(user);
+        user.refreshTokens = [...(user.refreshTokens || []), refreshToken];
+        await user.save();
+        setRefreshTokenCookie(res, refreshToken);
 
-        return res.status(200).send({ user: { payload }, token: jwtToken });
+        return res.status(200).send({
+            user: { payload },
+            accessToken,
+            accessTokenExpiresIn: getAccessTokenExpiry()
+        });
     } catch (error) {
         console.error("Error in Google login:", error.message);
         return res.status(500).send({ message: "Internal Server Error", error: error.message });

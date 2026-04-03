@@ -1,6 +1,7 @@
 require('dotenv/config');
 const express = require('express');
 const http = require('http');
+const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const cors = require('cors');
 const { authJwt } = require('./helpers/jwt');
@@ -37,6 +38,7 @@ app.use(cors({
 app.options('*', cors());
 
 // Middleware
+app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(morgan('tiny'));
