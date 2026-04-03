@@ -10,13 +10,64 @@ const {
     getAccessTokenExpiry,
     setRefreshTokenCookie,
     clearRefreshTokenCookie,
-    getRefreshTokenFromRequest
+    getRefreshTokenFromRequest,
+    createSessionId
 } = require('../../helpers/jwt');
 
-const buildAuthResponse = async (user, res) => {
+const MAX_ACTIVE_SESSIONS = 5;
+
+const normalizeRefreshSessions = (sessions = []) =>
+    (Array.isArray(sessions) ? sessions : [])
+        .map((session) => {
+            if (!session) {
+                return null;
+            }
+
+            if (typeof session === 'string') {
+                return {
+                    sessionId: createSessionId(),
+                    token: session,
+                    createdAt: new Date(),
+                    lastUsedAt: new Date(),
+                    userAgent: 'Unknown device',
+                    ipAddress: ''
+                };
+            }
+
+            const plainSession = typeof session.toObject === 'function' ? session.toObject() : session;
+            return {
+                sessionId: plainSession.sessionId || createSessionId(),
+                token: plainSession.token || '',
+                createdAt: plainSession.createdAt || new Date(),
+                lastUsedAt: plainSession.lastUsedAt || plainSession.createdAt || new Date(),
+                userAgent: plainSession.userAgent || 'Unknown device',
+                ipAddress: plainSession.ipAddress || ''
+            };
+        })
+        .filter((session) => session && session.token);
+
+const createSessionRecord = (user, req) => {
+    const sessionId = createSessionId();
+    const refreshToken = createRefreshToken(user, sessionId);
+
+    return {
+        refreshToken,
+        session: {
+            sessionId,
+            token: refreshToken,
+            createdAt: new Date(),
+            lastUsedAt: new Date(),
+            userAgent: req.get('user-agent') || 'Unknown device',
+            ipAddress: req.ip
+        }
+    };
+};
+
+const buildAuthResponse = async (user, req, res) => {
     const accessToken = createAccessToken(user);
-    const refreshToken = createRefreshToken(user);
-    user.refreshTokens = [refreshToken];
+    const { refreshToken, session } = createSessionRecord(user, req);
+    const existingSessions = normalizeRefreshSessions(user.refreshTokens);
+    user.refreshTokens = [...existingSessions, session].slice(-MAX_ACTIVE_SESSIONS);
     await user.save();
     setRefreshTokenCookie(res, refreshToken);
 
@@ -26,6 +77,16 @@ const buildAuthResponse = async (user, res) => {
         accessTokenExpiresIn: getAccessTokenExpiry()
     };
 };
+
+const formatActiveSessions = (sessions = [], currentToken) =>
+    sessions.map((session) => ({
+        sessionId: session.sessionId,
+        createdAt: session.createdAt,
+        lastUsedAt: session.lastUsedAt,
+        userAgent: session.userAgent,
+        ipAddress: session.ipAddress,
+        isCurrent: session.token === currentToken
+    }));
 
 router.get('/', async (req, res) => {
     try {
@@ -54,6 +115,55 @@ router.get('/me/current', async (req, res) => {
     } catch (err) {
         console.error('Error fetching current user:', err.message);
         res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/me/sessions', async (req, res) => {
+    try {
+        const currentRefreshToken = getRefreshTokenFromRequest(req);
+        const user = await User.findById(req.auth?.userId).select('refreshTokens');
+
+        if (!user) {
+            return res.status(404).json({ message: 'The user with the given ID was not found.' });
+        }
+
+        const normalizedSessions = normalizeRefreshSessions(user.refreshTokens);
+        if (normalizedSessions.length !== (user.refreshTokens?.length || 0)) {
+            user.refreshTokens = normalizedSessions;
+            await user.save();
+        }
+
+        return res.status(200).json(formatActiveSessions(normalizedSessions, currentRefreshToken));
+    } catch (error) {
+        return res.status(500).json({ message: 'Error fetching active sessions.', error: error.message });
+    }
+});
+
+router.delete('/me/sessions/:sessionId', async (req, res) => {
+    try {
+        const currentRefreshToken = getRefreshTokenFromRequest(req);
+        const user = await User.findById(req.auth?.userId);
+
+        if (!user) {
+            return res.status(404).json({ message: 'The user with the given ID was not found.' });
+        }
+
+        const normalizedSessions = normalizeRefreshSessions(user.refreshTokens);
+        const targetSession = normalizedSessions.find((session) => session.sessionId === req.params.sessionId);
+        if (!targetSession) {
+            return res.status(404).json({ message: 'Session not found.' });
+        }
+
+        user.refreshTokens = normalizedSessions.filter((session) => session.sessionId !== req.params.sessionId);
+        await user.save();
+
+        if (targetSession.token === currentRefreshToken) {
+            clearRefreshTokenCookie(res);
+        }
+
+        return res.status(200).json({ message: 'Session revoked successfully.' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Error revoking session.', error: error.message });
     }
 });
 
@@ -157,7 +267,7 @@ router.post('/login', async (req, res) => {
             return res.status(400).send('The user not found');
         }
         if (user && bcrypt.compareSync(req.body.password, user.passwordHash)) {
-            const authResponse = await buildAuthResponse(user, res);
+            const authResponse = await buildAuthResponse(user, req, res);
             res.status(200).send(authResponse);
         } else {
             res.status(400).send('Password is wrong!');
@@ -189,7 +299,7 @@ router.post('/register', async (req, res) => {
         if (!new_user) {
             return res.status(400).send('The user cannot be created!');
         } else {
-            const authResponse = await buildAuthResponse(new_user, res);
+            const authResponse = await buildAuthResponse(new_user, req, res);
             res.status(200).send({ ...authResponse, user: new_user });
         }
 
@@ -214,14 +324,25 @@ router.post('/refresh-token', async (req, res) => {
         }
 
         const user = await User.findById(decoded.userId);
-        if (!user || !user.refreshTokens?.includes(refreshToken)) {
+        const normalizedSessions = normalizeRefreshSessions(user?.refreshTokens);
+        const matchedSession = normalizedSessions.find((session) => session.sessionId === decoded.sessionId && session.token === refreshToken);
+        if (!user || !matchedSession) {
             return res.status(401).json({ message: 'Refresh token is not recognized.' });
         }
 
         const nextAccessToken = createAccessToken(user);
-        const nextRefreshToken = createRefreshToken(user);
-
-        user.refreshTokens = [nextRefreshToken];
+        const nextRefreshToken = createRefreshToken(user, matchedSession.sessionId);
+        user.refreshTokens = normalizedSessions.map((session) =>
+            session.sessionId === matchedSession.sessionId
+                ? {
+                    ...session,
+                    token: nextRefreshToken,
+                    lastUsedAt: new Date(),
+                    userAgent: req.get('user-agent') || session.userAgent,
+                    ipAddress: req.ip
+                }
+                : session
+        );
         await user.save();
         setRefreshTokenCookie(res, nextRefreshToken);
 
@@ -248,7 +369,7 @@ router.post('/logout', async (req, res) => {
             const decoded = verifyRefreshToken(refreshToken);
             if (decoded?.userId) {
                 await User.findByIdAndUpdate(decoded.userId, {
-                    $set: { refreshTokens: [] }
+                    $pull: { refreshTokens: { sessionId: decoded.sessionId } }
                 });
             }
         } catch (error) {

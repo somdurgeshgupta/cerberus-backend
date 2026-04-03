@@ -1,4 +1,5 @@
 const { expressjwt: jwt } = require("express-jwt");
+const { randomUUID } = require('crypto');
 const jwttoken = require('jsonwebtoken');
 
 const getAccessTokenSecret = () => process.env.SECRET_KEY;
@@ -60,10 +61,11 @@ function createAccessToken(user) {
     );
 }
 
-function createRefreshToken(user) {
+function createRefreshToken(user, sessionId = randomUUID()) {
     return jwttoken.sign(
         {
             userId: user.id,
+            sessionId,
             tokenType: 'refresh'
         },
         getRefreshTokenSecret(),
@@ -112,5 +114,6 @@ module.exports = {
     getRefreshTokenExpiry,
     setRefreshTokenCookie,
     clearRefreshTokenCookie,
-    getRefreshTokenFromRequest
+    getRefreshTokenFromRequest,
+    createSessionId: randomUUID
 };

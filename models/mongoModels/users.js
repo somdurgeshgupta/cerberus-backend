@@ -1,5 +1,32 @@
 const mongoose = require('mongoose');
 
+const refreshSessionSchema = new mongoose.Schema({
+    sessionId: {
+        type: String,
+        required: true
+    },
+    token: {
+        type: String,
+        required: true
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    lastUsedAt: {
+        type: Date,
+        default: Date.now
+    },
+    userAgent: {
+        type: String,
+        required: false
+    },
+    ipAddress: {
+        type: String,
+        required: false
+    }
+}, { _id: false });
+
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -22,7 +49,7 @@ const userSchema = new mongoose.Schema({
         required: false
     },
     refreshTokens: {
-        type: [String],
+        type: [refreshSessionSchema],
         default: []
     }
 });

@@ -6,10 +6,42 @@ const {
     createAccessToken,
     createRefreshToken,
     getAccessTokenExpiry,
-    setRefreshTokenCookie
+    setRefreshTokenCookie,
+    createSessionId
 } = require('./jwt');
 
 const client = new OAuth2Client(process.env.GOOGLE_AUTH_KEY);
+const MAX_ACTIVE_SESSIONS = 5;
+
+const normalizeRefreshSessions = (sessions = []) =>
+    (Array.isArray(sessions) ? sessions : [])
+        .map((session) => {
+            if (!session) {
+                return null;
+            }
+
+            if (typeof session === 'string') {
+                return {
+                    sessionId: createSessionId(),
+                    token: session,
+                    createdAt: new Date(),
+                    lastUsedAt: new Date(),
+                    userAgent: 'Unknown device',
+                    ipAddress: ''
+                };
+            }
+
+            const plainSession = typeof session.toObject === 'function' ? session.toObject() : session;
+            return {
+                sessionId: plainSession.sessionId || createSessionId(),
+                token: plainSession.token || '',
+                createdAt: plainSession.createdAt || new Date(),
+                lastUsedAt: plainSession.lastUsedAt || plainSession.createdAt || new Date(),
+                userAgent: plainSession.userAgent || 'Unknown device',
+                ipAddress: plainSession.ipAddress || ''
+            };
+        })
+        .filter((session) => session && session.token);
 
 async function decodeGoogleToken(token) {
     try {
@@ -65,9 +97,20 @@ router.post('/googlelogin', async (req, res) => {
             }
         }
 
+        const sessionId = createSessionId();
         const accessToken = createAccessToken(user);
-        const refreshToken = createRefreshToken(user);
-        user.refreshTokens = [...(user.refreshTokens || []), refreshToken];
+        const refreshToken = createRefreshToken(user, sessionId);
+        user.refreshTokens = [
+            ...normalizeRefreshSessions(user.refreshTokens),
+            {
+                sessionId,
+                token: refreshToken,
+                createdAt: new Date(),
+                lastUsedAt: new Date(),
+                userAgent: req.get('user-agent') || 'Unknown device',
+                ipAddress: req.ip
+            }
+        ].slice(-MAX_ACTIVE_SESSIONS);
         await user.save();
         setRefreshTokenCookie(res, refreshToken);
 
