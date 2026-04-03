@@ -27,6 +27,11 @@ const productSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    imageUrl: {
+        type: String,
+        required: true,
+        trim: true
+    },
     tone: {
         type: String,
         enum: ['sun', 'sky', 'clay', 'forest'],

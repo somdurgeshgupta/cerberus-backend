@@ -45,6 +45,7 @@ const productSnapshotSchema = new mongoose.Schema({
     name: { type: String, required: true },
     category: { type: String, required: true },
     price: { type: Number, required: true },
+    imageUrl: { type: String, required: false, default: '' },
     imageTone: { type: String, required: false, default: 'sun' },
     shortDescription: { type: String, required: false, default: '' }
 }, { _id: false });

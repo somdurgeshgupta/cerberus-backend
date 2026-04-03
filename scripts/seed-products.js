@@ -7,7 +7,7 @@ const { Product } = require('../models/mongoModels/products');
 async function run() {
   const connectionString = `${process.env.CONNECTION_STRING}${process.env.DBNAME}`;
   const seedPath = path.join(__dirname, '../data/products.seed.json');
-  const products = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
+  const products = JSON.parse(fs.readFileSync(seedPath, 'utf8').replace(/^\uFEFF/, ''));
 
   await mongoose.connect(connectionString);
 

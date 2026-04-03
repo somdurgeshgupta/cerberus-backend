@@ -6,12 +6,25 @@ const { Product } = require('../../models/mongoModels/products');
 
 const router = express.Router();
 
-const SHIPPING_FLAT_RATE = 12;
+const SHIPPING_FLAT_RATE = 99;
+
+const formatCurrency = (amount) => new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0
+}).format(amount);
+
+const withDisplayTotals = (totals) => ({
+    ...totals,
+    subtotalDisplay: formatCurrency(totals.subtotal),
+    shippingDisplay: formatCurrency(totals.shipping),
+    totalDisplay: formatCurrency(totals.total)
+});
 
 const toProductResponse = (product) => ({
     ...product.toJSON(),
     id: product.productId,
-    priceDisplay: `$${product.price}`
+    priceDisplay: formatCurrency(product.price)
 });
 
 const toProductSnapshot = (product) => ({
@@ -19,6 +32,7 @@ const toProductSnapshot = (product) => ({
     name: product.name,
     category: product.category,
     price: product.price,
+    imageUrl: product.imageUrl,
     imageTone: product.tone,
     shortDescription: product.shortDescription
 });
@@ -31,7 +45,7 @@ const formatUserStore = (user) => ({
         quantity: item.quantity,
         product: {
             ...item.productSnapshot,
-            priceDisplay: `$${item.productSnapshot.price}`
+            priceDisplay: formatCurrency(item.productSnapshot.price)
         }
     })),
     wishlist: (user.wishlist || []).map((item) => ({
@@ -39,7 +53,7 @@ const formatUserStore = (user) => ({
         productId: item.productId,
         product: {
             ...item.productSnapshot,
-            priceDisplay: `$${item.productSnapshot.price}`
+            priceDisplay: formatCurrency(item.productSnapshot.price)
         }
     }))
 });
@@ -83,12 +97,7 @@ router.get('/orders', async (req, res) => {
     const orders = await Order.find({ userId: req.auth?.userId }).sort({ placedAt: -1 });
     return res.status(200).json(orders.map((order) => ({
         ...order.toJSON(),
-        totals: {
-            ...order.totals,
-            subtotalDisplay: `$${order.totals.subtotal}`,
-            shippingDisplay: `$${order.totals.shipping}`,
-            totalDisplay: `$${order.totals.total}`
-        }
+        totals: withDisplayTotals(order.totals)
     })));
 });
 
@@ -313,12 +322,7 @@ router.post('/orders/place', async (req, res) => {
 
     return res.status(201).json({
         ...order.toJSON(),
-        totals: {
-            ...totals,
-            subtotalDisplay: `$${totals.subtotal}`,
-            shippingDisplay: `$${totals.shipping}`,
-            totalDisplay: `$${totals.total}`
-        }
+        totals: withDisplayTotals(totals)
     });
 });
 
@@ -331,7 +335,7 @@ router.get('/checkout/summary', async (req, res) => {
     return res.status(200).json({
         cart: formatUserStore(user).cart,
         addresses: user.addresses || [],
-        totals: calculateTotals(user.cart || [])
+        totals: withDisplayTotals(calculateTotals(user.cart || []))
     });
 });
 
