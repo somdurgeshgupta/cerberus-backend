@@ -50,11 +50,13 @@ const api = process.env.API_URL;
 // Import Routes
 const usersRoutes = require('./routes/mongodbRoutes/users.js');
 const profileRoutes = require('./routes/mongodbRoutes/profile.js');
+const storeRoutes = require('./routes/mongodbRoutes/store.js');
 const googlelogin = require('./helpers/google-login.js');
 
 // Routes for MySQL database
 app.use(`${api}/users`, authJwt(), usersRoutes);
 app.use(`${api}/profile`, authJwt(), profileRoutes);
+app.use(`${api}/store`, storeRoutes);
 app.use(`${api}`, googlelogin);
 
 app.get('', (req, res) => {

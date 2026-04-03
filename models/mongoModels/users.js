@@ -27,6 +27,41 @@ const refreshSessionSchema = new mongoose.Schema({
     }
 }, { _id: false });
 
+const addressSchema = new mongoose.Schema({
+    label: { type: String, required: true },
+    fullName: { type: String, required: true },
+    phoneNumber: { type: String, required: true },
+    line1: { type: String, required: true },
+    line2: { type: String, required: false, default: '' },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    postalCode: { type: String, required: true },
+    country: { type: String, required: true, default: 'India' },
+    isDefault: { type: Boolean, default: false }
+}, { _id: true, timestamps: true });
+
+const productSnapshotSchema = new mongoose.Schema({
+    productId: { type: String, required: true },
+    name: { type: String, required: true },
+    category: { type: String, required: true },
+    price: { type: Number, required: true },
+    imageTone: { type: String, required: false, default: 'sun' },
+    shortDescription: { type: String, required: false, default: '' }
+}, { _id: false });
+
+const cartItemSchema = new mongoose.Schema({
+    productId: { type: String, required: true },
+    quantity: { type: Number, required: true, default: 1, min: 1 },
+    productSnapshot: { type: productSnapshotSchema, required: true },
+    addedAt: { type: Date, default: Date.now }
+}, { _id: true });
+
+const wishlistItemSchema = new mongoose.Schema({
+    productId: { type: String, required: true },
+    productSnapshot: { type: productSnapshotSchema, required: true },
+    addedAt: { type: Date, default: Date.now }
+}, { _id: true });
+
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -51,6 +86,18 @@ const userSchema = new mongoose.Schema({
     refreshTokens: {
         type: [refreshSessionSchema],
         default: []
+    },
+    addresses: {
+        type: [addressSchema],
+        default: []
+    },
+    cart: {
+        type: [cartItemSchema],
+        default: []
+    },
+    wishlist: {
+        type: [wishlistItemSchema],
+        default: []
     }
 });
 
@@ -68,3 +115,5 @@ userSchema.set('toJSON', {
 
 exports.User = mongoose.model('user', userSchema);
 exports.userSchema = userSchema;
+exports.addressSchema = addressSchema;
+exports.productSnapshotSchema = productSnapshotSchema;
