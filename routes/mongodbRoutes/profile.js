@@ -1,16 +1,15 @@
 const express = require('express');
+const fs = require('fs');
 const multer = require('multer');
-const ImageKit = require('imagekit');
+const path = require('path');
 const { User } = require('../../models/mongoModels/users');
 const router = express.Router();
 
-const imagekit = new ImageKit({
-  publicKey: "public_2uZweRqw9cEkcvvOmWQCWtWsPV0=",
-  privateKey: "private_dGLRokWSZNpSVWXg6c4s3lg4v/s=",
-  urlEndpoint: "https://ik.imagekit.io/atharva",
-});
+const uploadDir = path.join(__dirname, '../../public/uploads/profile');
+fs.mkdirSync(uploadDir, { recursive: true });
 
 const upload = multer({
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
@@ -34,14 +33,23 @@ router.post('/upload-profile-image/:id', upload.single('profileImage'), async (r
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const fileName = `profile_${Date.now()}_${user.email}`;
-    const uploadResponse = await imagekit.upload({
-      file: req.file.buffer,
-      fileName: fileName,
-      folder: `/profile/${user.id}`,
-    });
+    const sanitizedEmail = user.email.replace(/[^a-zA-Z0-9]/g, '_');
+    const extension = path.extname(req.file.originalname) || '.jpg';
+    const fileName = `profile_${Date.now()}_${sanitizedEmail}${extension}`;
+    const filePath = path.join(uploadDir, fileName);
 
-    user.profileImage = uploadResponse.url;
+    await fs.promises.writeFile(filePath, req.file.buffer);
+
+    if (user.profileImage && user.profileImage.includes('/public/uploads/profile/')) {
+      const previousFileName = path.basename(user.profileImage);
+      const previousFilePath = path.join(uploadDir, previousFileName);
+      if (fs.existsSync(previousFilePath)) {
+        await fs.promises.unlink(previousFilePath);
+      }
+    }
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    user.profileImage = `${baseUrl}/public/uploads/profile/${fileName}`;
     await user.save();
 
     res.status(200).json({

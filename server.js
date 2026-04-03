@@ -49,12 +49,10 @@ const api = process.env.API_URL;
 const usersRoutes = require('./routes/mongodbRoutes/users.js');
 const profileRoutes = require('./routes/mongodbRoutes/profile.js');
 const googlelogin = require('./helpers/google-login.js');
-const ideployRoutes = require('./routes/mongodbRoutes/ideploy.js');
 
 // Routes for MySQL database
 app.use(`${api}/users`, authJwt(), usersRoutes);
 app.use(`${api}/profile`, authJwt(), profileRoutes);
-app.use(`${api}/ideploy`, ideployRoutes);
 app.use(`${api}`, googlelogin);
 
 app.get('', (req, res) => {

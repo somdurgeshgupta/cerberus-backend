@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 
 const client = new OAuth2Client(process.env.GOOGLE_AUTH_KEY);
+const getJwtExpiry = () => process.env.JWT_EXPIRES_IN || '1d';
 
 async function decodeGoogleToken(token) {
     try {
@@ -67,7 +68,7 @@ router.post('/googlelogin', async (req, res) => {
                 isAdmin: user.isAdmin
             },
             process.env.SECRET_KEY,
-            { expiresIn: '1d' }
+            { expiresIn: getJwtExpiry() }
         );
 
         return res.status(200).send({ user: { payload }, token: jwtToken });

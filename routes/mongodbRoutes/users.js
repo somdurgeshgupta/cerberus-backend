@@ -5,6 +5,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const {decodeToken} = require('../../helpers/jwt');
 
+const getJwtExpiry = () => process.env.JWT_EXPIRES_IN || '1d';
+
 router.get('/', async (req, res) => {
     try {
         const userList = await User.find().select('-passwordHash');
@@ -128,7 +130,7 @@ router.post('/login', async (req, res) => {
                     isAdmin: user.isAdmin
                 },
                 secret,
-                { expiresIn: '1m' }
+                { expiresIn: getJwtExpiry() }
             );
 
             res.status(200).send({ user: user.email, token: token });
@@ -169,7 +171,7 @@ router.post('/register', async (req, res) => {
                     isAdmin: true
                 },
                 process.env.SECRET_KEY,
-                { expiresIn: '1d' }
+                { expiresIn: getJwtExpiry() }
             );
             res.status(200).send({ user: new_user, token: token });
         }
