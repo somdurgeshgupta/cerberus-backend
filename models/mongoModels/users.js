@@ -45,9 +45,23 @@ const productSnapshotSchema = new mongoose.Schema({
     name: { type: String, required: true },
     category: { type: String, required: true },
     price: { type: Number, required: true },
+    basePrice: { type: Number, required: false },
     imageUrl: { type: String, required: false, default: '' },
     imageTone: { type: String, required: false, default: 'sun' },
-    shortDescription: { type: String, required: false, default: '' }
+    shortDescription: { type: String, required: false, default: '' },
+    brandName: { type: String, required: false, default: '' },
+    selectedVariant: {
+        type: {
+            variantId: { type: String, required: false, default: '' },
+            sku: { type: String, required: false, default: '' },
+            name: { type: String, required: false, default: '' },
+            design: { type: String, required: false, default: '' },
+            color: { type: String, required: false, default: '' },
+            size: { type: String, required: false, default: '' }
+        },
+        required: false,
+        default: null
+    }
 }, { _id: false });
 
 const cartItemSchema = new mongoose.Schema({

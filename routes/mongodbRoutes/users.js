@@ -15,6 +15,7 @@ const {
 } = require('../../helpers/jwt');
 
 const MAX_ACTIVE_SESSIONS = 5;
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
 const normalizeRefreshSessions = (sessions = []) =>
     (Array.isArray(sessions) ? sessions : [])
@@ -221,7 +222,8 @@ router.put('/:id', async (req, res) => {
 
 router.post('/forgetpassword', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const email = normalizeEmail(req.body.email);
+        const { password } = req.body;
 
         // Validate input
         if (!email || !password) {
@@ -262,33 +264,41 @@ router.post('/forgetpassword', async (req, res) => {
 
 router.post('/login', async (req, res) => {
     try {
-        const user = await User.findOne({ email: req.body.email });
+        const email = normalizeEmail(req.body.email);
+        const password = String(req.body.password || '');
+        const user = await User.findOne({ email });
         if (!user) {
-            return res.status(400).send('The user not found');
+            return res.status(400).json({ message: 'Invalid email or password.' });
         }
-        if (user && bcrypt.compareSync(req.body.password, user.passwordHash)) {
+
+        if (!user.passwordHash) {
+            return res.status(400).json({ message: 'This account does not have a password login enabled.' });
+        }
+
+        if (bcrypt.compareSync(password, user.passwordHash)) {
             const authResponse = await buildAuthResponse(user, req, res);
-            res.status(200).send(authResponse);
-        } else {
-            res.status(400).send('Password is wrong!');
+            return res.status(200).json(authResponse);
         }
+
+        return res.status(400).json({ message: 'Invalid email or password.' });
     } catch (error) {
         console.error("Error logging in:", error);
-        res.status(500).send('Internal server error');
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
 
 router.post('/register', async (req, res) => {
     try {
-        const user = await User.findOne({ email: req.body.email });
+        const email = normalizeEmail(req.body.email);
+        const user = await User.findOne({ email });
         if (user) {
             return res.status(400).send('The user is already registered, please login');
         }
 
         let new_user = new User({
             name: req.body.name,
-            email: req.body.email,
+            email,
             passwordHash: bcrypt.hashSync(req.body.password, 10),
         });
 

@@ -1,5 +1,91 @@
 const mongoose = require('mongoose');
 
+const reviewSchema = new mongoose.Schema({
+    reviewId: {
+        type: String,
+        trim: true
+    },
+    title: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+    comment: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+    rating: {
+        type: Number,
+        min: 0,
+        max: 5,
+        default: 0
+    },
+    userName: {
+        type: String,
+        trim: true,
+        default: 'Verified buyer'
+    },
+    verified: {
+        type: Boolean,
+        default: false
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+}, { _id: false });
+
+const variantSchema = new mongoose.Schema({
+    variantId: {
+        type: String,
+        trim: true
+    },
+    sku: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+    name: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+    design: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+    color: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+    size: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+    price: {
+        type: Number,
+        min: 0
+    },
+    inventoryCount: {
+        type: Number,
+        min: 0,
+        default: 0
+    },
+    imageUrl: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+    attributes: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+    }
+}, { _id: false });
+
 const productSchema = new mongoose.Schema({
     productId: {
         type: String,
@@ -59,6 +145,30 @@ const productSchema = new mongoose.Schema({
         default: 4.6,
         min: 0,
         max: 5
+    },
+    brand: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null
+    },
+    categoryHierarchy: {
+        type: [mongoose.Schema.Types.Mixed],
+        default: []
+    },
+    discount: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null
+    },
+    variants: {
+        type: [variantSchema],
+        default: []
+    },
+    reviews: {
+        type: [reviewSchema],
+        default: []
+    },
+    attributes: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
     },
     active: {
         type: Boolean,

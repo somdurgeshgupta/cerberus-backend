@@ -7,12 +7,167 @@ const { Product } = require('../../models/mongoModels/products');
 const router = express.Router();
 
 const SHIPPING_FLAT_RATE = 99;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 20;
 
 const formatCurrency = (amount) => new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 0
 }).format(amount);
+
+const normalizeText = (value) => String(value || '').trim().toLowerCase();
+
+const getBrandName = (brand) => {
+    if (!brand) {
+        return '';
+    }
+
+    if (typeof brand === 'string') {
+        return brand;
+    }
+
+    return brand.name || brand.label || brand.title || '';
+};
+
+const getProductCategory = (product) => {
+    if (typeof product?.category === 'string' && product.category.trim()) {
+        return product.category.trim();
+    }
+
+    if (Array.isArray(product?.categoryHierarchy) && product.categoryHierarchy.length) {
+        const lastEntry = product.categoryHierarchy[product.categoryHierarchy.length - 1];
+        if (typeof lastEntry === 'string' && lastEntry.trim()) {
+            return lastEntry.trim();
+        }
+
+        if (lastEntry && typeof lastEntry === 'object') {
+            const label = lastEntry.name || lastEntry.label || lastEntry.title || lastEntry.slug;
+            if (typeof label === 'string' && label.trim()) {
+                return label.trim();
+            }
+        }
+    }
+
+    return 'Uncategorized';
+};
+
+const getDiscountedPrice = (amount, discount) => {
+    if (!discount || typeof amount !== 'number') {
+        return amount;
+    }
+
+    if (typeof discount === 'number') {
+        return Math.max(0, amount - discount);
+    }
+
+    if (typeof discount === 'string') {
+        const parsed = Number(discount);
+        return Number.isFinite(parsed) ? Math.max(0, amount - parsed) : amount;
+    }
+
+    const kind = normalizeText(discount.type || discount.kind || discount.discountType);
+    const value = Number(discount.value ?? discount.amount ?? discount.percent ?? 0);
+
+    if (!Number.isFinite(value) || value <= 0) {
+        return amount;
+    }
+
+    if (kind.includes('percent')) {
+        return Math.max(0, Math.round(amount - ((amount * value) / 100)));
+    }
+
+    return Math.max(0, amount - value);
+};
+
+const buildDiscountLabel = (discount) => {
+    if (!discount) {
+        return '';
+    }
+
+    if (typeof discount === 'number') {
+        return `${formatCurrency(discount)} off`;
+    }
+
+    const kind = normalizeText(discount.type || discount.kind || discount.discountType);
+    const value = Number(discount.value ?? discount.amount ?? discount.percent ?? 0);
+    if (!Number.isFinite(value) || value <= 0) {
+        return '';
+    }
+
+    if (kind.includes('percent')) {
+        return `${value}% off`;
+    }
+
+    return `${formatCurrency(value)} off`;
+};
+
+const getVariantId = (variant) => variant?.variantId || variant?.id || variant?.sku || '';
+
+const normalizeVariant = (variant, fallbackTone, fallbackImageUrl, basePrice, discount) => {
+    const effectiveBasePrice = Number(variant?.price ?? basePrice ?? 0);
+    const finalPrice = getDiscountedPrice(effectiveBasePrice, discount);
+    return {
+        variantId: getVariantId(variant),
+        sku: variant?.sku || '',
+        name: variant?.name || '',
+        design: variant?.design || variant?.style || variant?.pattern || '',
+        color: variant?.color || variant?.colour || variant?.colorName || '',
+        size: variant?.size || '',
+        inventoryCount: Number(variant?.inventoryCount ?? 0),
+        imageUrl: variant?.imageUrl || fallbackImageUrl || '',
+        tone: variant?.tone || fallbackTone || 'sun',
+        attributes: variant?.attributes || {},
+        price: finalPrice,
+        basePrice: effectiveBasePrice,
+        priceDisplay: formatCurrency(finalPrice),
+        basePriceDisplay: formatCurrency(effectiveBasePrice)
+    };
+};
+
+const getVariantOptions = (variants) => {
+    const uniqueValues = (field) => [...new Set(variants.map((variant) => variant[field]).filter(Boolean))];
+    return {
+        designs: uniqueValues('design'),
+        colors: uniqueValues('color'),
+        sizes: uniqueValues('size')
+    };
+};
+
+const resolveSelectedVariant = (product, variantId) => {
+    const variants = (product.variants || []).map((variant) => normalizeVariant(variant, product.tone, product.imageUrl, product.price, product.discount));
+    if (!variants.length) {
+        return null;
+    }
+
+    if (variantId) {
+        const selected = variants.find((variant) => normalizeText(variant.variantId) === normalizeText(variantId));
+        if (selected) {
+            return selected;
+        }
+    }
+
+    return variants.find((variant) => variant.inventoryCount > 0) || variants[0];
+};
+
+const buildReviewsPayload = (product) => {
+    const reviews = [...(product.reviews || [])]
+        .map((review, index) => ({
+            reviewId: review.reviewId || `review-${index + 1}`,
+            title: review.title || '',
+            comment: review.comment || review.body || '',
+            rating: Number(review.rating ?? 0),
+            userName: review.userName || review.author || review.reviewer || 'Verified buyer',
+            verified: !!review.verified,
+            createdAt: review.createdAt || review.date || null
+        }))
+        .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime());
+
+    return {
+        count: reviews.length,
+        items: reviews
+    };
+};
 
 const withDisplayTotals = (totals) => ({
     ...totals,
@@ -21,21 +176,66 @@ const withDisplayTotals = (totals) => ({
     totalDisplay: formatCurrency(totals.total)
 });
 
-const toProductResponse = (product) => ({
-    ...product.toJSON(),
-    id: product.productId,
-    priceDisplay: formatCurrency(product.price)
-});
+const toProductResponse = (product, options = {}) => {
+    const selectedVariant = resolveSelectedVariant(product, options.variantId);
+    const variants = (product.variants || []).map((variant) => normalizeVariant(variant, product.tone, product.imageUrl, product.price, product.discount));
+    const productBasePrice = Number(selectedVariant?.basePrice ?? product.price ?? 0);
+    const productFinalPrice = Number(selectedVariant?.price ?? getDiscountedPrice(productBasePrice, product.discount));
+    const reviews = buildReviewsPayload(product);
 
-const toProductSnapshot = (product) => ({
-    productId: product.productId,
-    name: product.name,
-    category: product.category,
-    price: product.price,
-    imageUrl: product.imageUrl,
-    imageTone: product.tone,
-    shortDescription: product.shortDescription
-});
+    const response = {
+        ...product.toJSON(),
+        id: product.productId,
+        category: getProductCategory(product),
+        price: productFinalPrice,
+        basePrice: productBasePrice,
+        priceDisplay: formatCurrency(productFinalPrice),
+        basePriceDisplay: formatCurrency(productBasePrice),
+        originalPrice: productBasePrice,
+        originalPriceDisplay: formatCurrency(productBasePrice),
+        hasDiscount: productFinalPrice < productBasePrice,
+        discountLabel: buildDiscountLabel(product.discount),
+        brandName: getBrandName(product.brand),
+        categoryHierarchy: product.categoryHierarchy || [],
+        reviews,
+        reviewCount: reviews.count,
+        rating: Number(product.rating ?? 0),
+        variants,
+        variantOptions: getVariantOptions(variants),
+        selectedVariant
+    };
+
+    if (options.includeReviews === false) {
+        delete response.reviews;
+    }
+
+    return response;
+};
+
+const toProductSnapshot = (product, variantId) => {
+    const selectedVariant = resolveSelectedVariant(product, variantId);
+    const price = Number(selectedVariant?.price ?? getDiscountedPrice(product.price, product.discount));
+
+    return {
+        productId: product.productId,
+        name: product.name,
+        category: getProductCategory(product),
+        price,
+        basePrice: Number(selectedVariant?.basePrice ?? product.price ?? 0),
+        imageUrl: selectedVariant?.imageUrl || product.imageUrl,
+        imageTone: selectedVariant?.tone || product.tone,
+        shortDescription: product.shortDescription,
+        brandName: getBrandName(product.brand),
+        selectedVariant: selectedVariant ? {
+            variantId: selectedVariant.variantId,
+            sku: selectedVariant.sku,
+            name: selectedVariant.name,
+            design: selectedVariant.design,
+            color: selectedVariant.color,
+            size: selectedVariant.size
+        } : null
+    };
+};
 
 const formatUserStore = (user) => ({
     addresses: user.addresses || [],
@@ -68,9 +268,48 @@ const calculateTotals = (items) => {
     };
 };
 
+const ensureUserCollections = (user) => {
+    user.addresses = Array.isArray(user.addresses) ? user.addresses : [];
+    user.cart = Array.isArray(user.cart) ? user.cart : [];
+    user.wishlist = Array.isArray(user.wishlist) ? user.wishlist : [];
+    return user;
+};
+
 router.get('/products', async (req, res) => {
-    const products = await Product.find({ active: true }).sort({ createdAt: -1 });
-    res.status(200).json(products.map(toProductResponse));
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.query.limit || DEFAULT_PAGE_SIZE)));
+    const skip = Math.max(0, Number(req.query.skip || 0));
+    const searchQuery = normalizeText(req.query.q);
+    const excludeId = normalizeText(req.query.excludeId);
+
+    const filters = { active: true };
+
+    if (searchQuery) {
+        filters.$or = [
+            { name: { $regex: searchQuery, $options: 'i' } },
+            { category: { $regex: searchQuery, $options: 'i' } },
+            { shortDescription: { $regex: searchQuery, $options: 'i' } },
+            { 'brand.name': { $regex: searchQuery, $options: 'i' } }
+        ];
+    }
+
+    if (excludeId) {
+        filters.productId = { $ne: excludeId };
+    }
+
+    const [products, total] = await Promise.all([
+        Product.find(filters).sort({ createdAt: -1 }).skip(skip).limit(limit),
+        Product.countDocuments(filters)
+    ]);
+
+    res.status(200).json({
+        items: products.map((product) => toProductResponse(product, { includeReviews: false })),
+        pagination: {
+            limit,
+            skip,
+            total,
+            hasMore: skip + products.length < total
+        }
+    });
 });
 
 router.get('/products/:id', async (req, res) => {
@@ -79,7 +318,7 @@ router.get('/products/:id', async (req, res) => {
         return res.status(404).json({ message: 'Product not found.' });
     }
 
-    return res.status(200).json(toProductResponse(product));
+    return res.status(200).json(toProductResponse(product, { variantId: req.query.variantId }));
 });
 
 router.use(authJwt());
@@ -106,6 +345,8 @@ router.post('/addresses', async (req, res) => {
     if (!user) {
         return res.status(404).json({ message: 'User not found.' });
     }
+
+    ensureUserCollections(user);
 
     const nextAddress = {
         label: req.body.label,
@@ -138,6 +379,8 @@ router.put('/addresses/:addressId', async (req, res) => {
     if (!user) {
         return res.status(404).json({ message: 'User not found.' });
     }
+
+    ensureUserCollections(user);
 
     const targetAddress = user.addresses.id(req.params.addressId);
     if (!targetAddress) {
@@ -173,6 +416,8 @@ router.delete('/addresses/:addressId', async (req, res) => {
         return res.status(404).json({ message: 'User not found.' });
     }
 
+    ensureUserCollections(user);
+
     user.addresses = (user.addresses || []).filter((address) => address.id !== req.params.addressId);
     await user.save();
     return res.status(200).json(user.addresses);
@@ -185,20 +430,26 @@ router.post('/cart', async (req, res) => {
     }
 
     const quantity = Math.max(1, Number(req.body.quantity || 1));
+    const selectedVariantId = req.body.variantId || '';
     const user = await User.findById(req.auth?.userId);
     if (!user) {
         return res.status(404).json({ message: 'User not found.' });
     }
 
-    const existingItem = (user.cart || []).find((item) => item.productId === product.productId);
+    ensureUserCollections(user);
+
+    const existingItem = user.cart.find((item) =>
+        item.productId === product.productId &&
+        normalizeText(item.productSnapshot?.selectedVariant?.variantId) === normalizeText(selectedVariantId)
+    );
     if (existingItem) {
         existingItem.quantity += quantity;
-        existingItem.productSnapshot = toProductSnapshot(product);
+        existingItem.productSnapshot = toProductSnapshot(product, selectedVariantId);
     } else {
         user.cart.push({
             productId: product.productId,
             quantity,
-            productSnapshot: toProductSnapshot(product)
+            productSnapshot: toProductSnapshot(product, selectedVariantId)
         });
     }
 
@@ -206,13 +457,15 @@ router.post('/cart', async (req, res) => {
     return res.status(200).json(formatUserStore(user));
 });
 
-router.put('/cart/:productId', async (req, res) => {
+router.put('/cart/:itemId', async (req, res) => {
     const user = await User.findById(req.auth?.userId);
     if (!user) {
         return res.status(404).json({ message: 'User not found.' });
     }
 
-    const targetItem = (user.cart || []).find((item) => item.productId === req.params.productId);
+    ensureUserCollections(user);
+
+    const targetItem = user.cart.find((item) => String(item._id) === req.params.itemId || item.productId === req.params.itemId);
     if (!targetItem) {
         return res.status(404).json({ message: 'Cart item not found.' });
     }
@@ -222,13 +475,15 @@ router.put('/cart/:productId', async (req, res) => {
     return res.status(200).json(formatUserStore(user));
 });
 
-router.delete('/cart/:productId', async (req, res) => {
+router.delete('/cart/:itemId', async (req, res) => {
     const user = await User.findById(req.auth?.userId);
     if (!user) {
         return res.status(404).json({ message: 'User not found.' });
     }
 
-    user.cart = (user.cart || []).filter((item) => item.productId !== req.params.productId);
+    ensureUserCollections(user);
+
+    user.cart = user.cart.filter((item) => String(item._id) !== req.params.itemId && item.productId !== req.params.itemId);
     await user.save();
     return res.status(200).json(formatUserStore(user));
 });
@@ -244,7 +499,9 @@ router.post('/wishlist', async (req, res) => {
         return res.status(404).json({ message: 'User not found.' });
     }
 
-    const exists = (user.wishlist || []).some((item) => item.productId === product.productId);
+    ensureUserCollections(user);
+
+    const exists = user.wishlist.some((item) => item.productId === product.productId);
     if (!exists) {
         user.wishlist.push({
             productId: product.productId,
@@ -262,7 +519,9 @@ router.delete('/wishlist/:productId', async (req, res) => {
         return res.status(404).json({ message: 'User not found.' });
     }
 
-    user.wishlist = (user.wishlist || []).filter((item) => item.productId !== req.params.productId);
+    ensureUserCollections(user);
+
+    user.wishlist = user.wishlist.filter((item) => item.productId !== req.params.productId);
     await user.save();
     return res.status(200).json(formatUserStore(user));
 });
@@ -272,6 +531,8 @@ router.post('/orders/place', async (req, res) => {
     if (!user) {
         return res.status(404).json({ message: 'User not found.' });
     }
+
+    ensureUserCollections(user);
 
     const source = req.body.source === 'buy-now' ? 'buy-now' : 'cart';
     const addressId = req.body.addressId;
@@ -292,7 +553,7 @@ router.post('/orders/place', async (req, res) => {
         orderItems = [{
             productId: product.productId,
             quantity: Math.max(1, Number(req.body.quantity || 1)),
-            productSnapshot: toProductSnapshot(product)
+            productSnapshot: toProductSnapshot(product, req.body.variantId)
         }];
     } else {
         orderItems = (user.cart || []).map((item) => ({
@@ -331,6 +592,8 @@ router.get('/checkout/summary', async (req, res) => {
     if (!user) {
         return res.status(404).json({ message: 'User not found.' });
     }
+
+    ensureUserCollections(user);
 
     return res.status(200).json({
         cart: formatUserStore(user).cart,
