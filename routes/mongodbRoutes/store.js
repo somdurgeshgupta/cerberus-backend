@@ -441,6 +441,18 @@ router.get('/orders', async (req, res) => {
     })));
 });
 
+router.get('/orders/:orderId', async (req, res) => {
+    const order = await Order.findOne({ _id: req.params.orderId, userId: req.auth?.userId });
+    if (!order) {
+        return res.status(404).json({ message: 'Order not found.' });
+    }
+
+    return res.status(200).json({
+        ...order.toJSON(),
+        totals: withDisplayTotals(order.totals)
+    });
+});
+
 router.post('/addresses', async (req, res) => {
     const user = await User.findById(req.auth?.userId);
     if (!user) {
