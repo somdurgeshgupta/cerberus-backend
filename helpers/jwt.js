@@ -8,7 +8,16 @@ const getAccessTokenExpiry = () => process.env.JWT_EXPIRES_IN || '15m';
 const getRefreshTokenExpiry = () => process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 const getRefreshTokenCookieName = () => process.env.REFRESH_TOKEN_COOKIE_NAME || 'refreshToken';
 const shouldUseSecureCookies = () => process.env.NODE_ENV === 'production';
-const getRefreshTokenCookieSameSite = () => process.env.REFRESH_TOKEN_COOKIE_SAME_SITE || (shouldUseSecureCookies() ? 'none' : 'lax');
+const getRefreshTokenCookieSameSite = () => {
+    const configuredSameSite = String(process.env.REFRESH_TOKEN_COOKIE_SAME_SITE || '').trim().toLowerCase();
+
+    if (shouldUseSecureCookies()) {
+        // Cross-site cookies must use SameSite=None in production when frontend and API are on different domains.
+        return configuredSameSite && configuredSameSite !== 'lax' ? configuredSameSite : 'none';
+    }
+
+    return configuredSameSite || 'lax';
+};
 
 function authJwt() {
     const secret = getAccessTokenSecret();

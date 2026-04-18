@@ -17,25 +17,43 @@ connectToDatabaseMongoose();
 const app = express();
 const server = http.createServer(app);
 
-const allowedOrigins = [
-  'http://localhost:4200'
+const configuredOrigins = [
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  ...(process.env.FRONTEND_URLS
+    ? process.env.FRONTEND_URLS.split(',').map((origin) => origin.trim()).filter(Boolean)
+    : [])
 ];
 
-app.use(cors({
+const allowedOrigins = [
+  'http://localhost:4200',
+  ...configuredOrigins
+];
+
+const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    if (!origin) {
+      return callback(null, true);
     }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    if (configuredOrigins.length === 0) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
-}));
+};
+
+app.use(cors(corsOptions));
 
 // Handle CORS preflight requests
-app.options('*', cors());
+app.options('*', cors(corsOptions));
 
 // Middleware
 app.use(cookieParser());
