@@ -17,9 +17,20 @@ connectToDatabaseMongoose();
 const app = express();
 const server = http.createServer(app);
 
+const configuredOrigins = [
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.trim().replace(/\/$/, '')] : []),
+  ...(process.env.FRONTEND_URLS
+    ? process.env.FRONTEND_URLS
+        .split(',')
+        .map((origin) => origin.trim().replace(/\/$/, ''))
+        .filter(Boolean)
+    : [])
+];
+
 const allowedOrigins = [
   'http://localhost:4200',
-  'https://project-cerberus-seven.vercel.app'
+  'https://project-cerberus-seven.vercel.app',
+  ...configuredOrigins
 ];
 
 const corsOptions = {
@@ -28,19 +39,18 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    if (allowedOrigins.includes(origin)) {
+    const normalizedOrigin = origin.trim().replace(/\/$/, '');
+
+    if (allowedOrigins.includes(normalizedOrigin)) {
       return callback(null, true);
     }
 
-    if (configuredOrigins.length === 0) {
-      return callback(null, true);
-    }
-
-    return callback(new Error(`Not allowed by CORS: ${origin}`));
+    return callback(new Error(`Not allowed by CORS: ${normalizedOrigin}`));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 204
 };
 
 app.use(cors(corsOptions));
@@ -54,7 +64,6 @@ app.use(bodyParser.json());
 app.use(express.json());
 app.use(morgan('tiny'));
 app.use('/public/uploads', express.static(__dirname + '/public/uploads'));
-app.use(errorHandler);
 
 const api = process.env.API_URL;
 
@@ -73,6 +82,8 @@ app.use(`${api}`, googlelogin);
 app.get('', (req, res) => {
   res.send('Welcome to the application');
 });
+
+app.use(errorHandler);
 
 // Start the server
 server.listen(PORT, '0.0.0.0', () => {
