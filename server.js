@@ -18,7 +18,8 @@ const app = express();
 const server = http.createServer(app);
 
 const allowedOrigins = [
-  'http://localhost:4200'
+  'http://localhost:4200',
+  'https://project-cerberus-seven.vercel.app'
 ];
 
 app.use(cors({
