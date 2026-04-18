@@ -26,10 +26,55 @@ const orderSchema = new mongoose.Schema({
         shipping: { type: Number, required: true, default: 0 },
         total: { type: Number, required: true }
     },
+    source: {
+        type: String,
+        enum: ['cart', 'buy-now'],
+        default: 'cart'
+    },
     status: {
         type: String,
-        enum: ['placed', 'processing', 'shipped', 'delivered', 'cancelled'],
-        default: 'placed'
+        enum: ['pending-payment', 'placed', 'processing', 'shipped', 'delivered', 'cancelled', 'payment-failed'],
+        default: 'pending-payment'
+    },
+    payment: {
+        method: {
+            type: String,
+            enum: ['cod', 'razorpay'],
+            default: 'razorpay'
+        },
+        provider: {
+            type: String,
+            default: 'razorpay'
+        },
+        status: {
+            type: String,
+            enum: ['created', 'authorized', 'paid', 'failed'],
+            default: 'created'
+        },
+        currency: {
+            type: String,
+            default: 'INR'
+        },
+        amount: {
+            type: Number,
+            default: 0
+        },
+        razorpayOrderId: {
+            type: String,
+            default: ''
+        },
+        razorpayPaymentId: {
+            type: String,
+            default: ''
+        },
+        razorpaySignature: {
+            type: String,
+            default: ''
+        },
+        paidAt: {
+            type: Date,
+            default: null
+        }
     },
     notes: {
         type: String,
