@@ -3,9 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
 const { Product } = require('../models/mongoModels/products');
+const { configureMongoDns, getMongoUri } = require('../config/mongo-config');
 
 async function run() {
-  const connectionString = `${process.env.CONNECTION_STRING}${process.env.DBNAME}`;
+  configureMongoDns();
+  const connectionString = getMongoUri();
   const seedPath = path.join(__dirname, '../data/products.seed.json');
   const products = JSON.parse(fs.readFileSync(seedPath, 'utf8').replace(/^\uFEFF/, ''));
 
